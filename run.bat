@@ -13,7 +13,7 @@ IF NOT DEFINED DevEnvDir (
 )
 
 :: Invoke compiler.
-%VC%\bin\cl main.c
+%VC%\bin\cl /Z7 main.cpp
 
 :: Run the main file.
 main
