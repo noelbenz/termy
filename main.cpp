@@ -5,10 +5,12 @@
 // Windows
 #include <windows.h>
 #include <d2d1.h>
+#include <dwrite.h>
 
 // Windows libraries
 #pragma comment(lib,"user32.lib")
 #pragma comment(lib, "d2d1.lib")
+#pragma comment(lib, "dwrite.lib")
 
 using std::cout;
 using std::endl;
@@ -19,12 +21,21 @@ struct Termy {
     ID2D1Factory* factory;
     ID2D1HwndRenderTarget* renderTarget;
     ID2D1SolidColorBrush* brush;
+
+    IDWriteFactory* writeFactory;
+    IDWriteTextFormat* textFormat;
+
+    const wchar_t* text;
+    UINT32 textLength;
 };
 
 void setupD2D1(Termy *termy) {
     RECT rect;
     D2D1_SIZE_U size;
     HRESULT result;
+
+    termy->text = L"Hello, world!";
+    termy->textLength = (UINT32) wcslen(termy->text);
 
     GetClientRect(termy->window, &rect);
 
@@ -44,6 +55,26 @@ void setupD2D1(Termy *termy) {
         &termy->brush);
 
     if (result != S_OK) throw "Failed to create brush.";
+
+    result = termy->writeFactory->CreateTextFormat(
+        L"Gabriola",
+        NULL,
+        DWRITE_FONT_WEIGHT_REGULAR,
+        DWRITE_FONT_STYLE_NORMAL,
+        DWRITE_FONT_STRETCH_NORMAL,
+        72.f,
+        L"en-us",
+        &termy->textFormat);
+
+    if (result != S_OK) throw "Failed to create text format.";
+
+    result = termy->textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+
+    if (result != S_OK) throw "Failed to set font alignment.";
+
+    result = termy->textFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+
+    if (result != S_OK) throw "Failed to set font paragraph alignment.";
 }
 
 LRESULT WINAPI windowProc(HWND window, UINT msg, WPARAM wParam, LPARAM lParam) {
@@ -86,6 +117,17 @@ LRESULT WINAPI windowProc(HWND window, UINT msg, WPARAM wParam, LPARAM lParam) {
     {
         if (!termy->renderTarget)
             setupD2D1(termy);
+
+        RECT rect;
+        GetClientRect(window, &rect);
+
+        D2D1_RECT_F layoutRect = D2D1::RectF(
+            static_cast<FLOAT>(rect.left),
+            static_cast<FLOAT>(rect.top),
+            static_cast<FLOAT>(rect.right - rect.left),
+            static_cast<FLOAT>(rect.bottom - rect.top));
+
+
         PAINTSTRUCT ps;
         BeginPaint(window, &ps);
         termy->renderTarget->BeginDraw();
@@ -96,6 +138,12 @@ LRESULT WINAPI windowProc(HWND window, UINT msg, WPARAM wParam, LPARAM lParam) {
             D2D1::Point2F(50.0f, 50.0f),
             termy->brush,
             1.0f);
+        termy->renderTarget->DrawText(
+            termy->text,
+            termy->textLength,
+            termy->textFormat,
+            layoutRect,
+            termy->brush);
         termy->renderTarget->EndDraw();
         ValidateRect(window, NULL);
         EndPaint(window, &ps);
@@ -119,6 +167,13 @@ void createD2D1Factory(Termy *termy) {
         &termy->factory);
 
     if (result != S_OK) throw "Failed to create Direct 2D factory.";
+
+    result = DWriteCreateFactory(
+        DWRITE_FACTORY_TYPE_SHARED,
+        __uuidof(IDWriteFactory),
+        reinterpret_cast<IUnknown**>(&termy->writeFactory));
+
+    if (result != S_OK) throw "Failed to create Direct Write factory.";
 }
 
 void createWindow(Termy *termy) {
