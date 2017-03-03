@@ -15,7 +15,10 @@
 using std::cout;
 using std::endl;
 
-struct Termy {
+
+
+class Termy {
+public:
     HINSTANCE instance;
     HWND window;
     ID2D1Factory* factory;
@@ -27,55 +30,18 @@ struct Termy {
 
     const wchar_t* text;
     UINT32 textLength;
+
+    void createWindow();
+    void createDeviceIndepdendentComponents();
+    void createDeviceDependentComponents();
+    void messageLoop();
+
+public:
+
+    Termy(HINSTANCE);
+
+    void start();
 };
-
-void setupD2D1(Termy *termy) {
-    RECT rect;
-    D2D1_SIZE_U size;
-    HRESULT result;
-
-    termy->text = L"Hello, world!";
-    termy->textLength = (UINT32) wcslen(termy->text);
-
-    GetClientRect(termy->window, &rect);
-
-    size = D2D1::SizeU(
-        rect.right - rect.left,
-        rect.bottom - rect.top);
-
-    result = termy->factory->CreateHwndRenderTarget(
-        D2D1::RenderTargetProperties(),
-        D2D1::HwndRenderTargetProperties(termy->window, size),
-        &termy->renderTarget);
-
-    if (result != S_OK) throw "Failed to create render target.";
-
-    result = termy->renderTarget->CreateSolidColorBrush(
-        D2D1::ColorF(D2D1::ColorF::LightSlateGray),
-        &termy->brush);
-
-    if (result != S_OK) throw "Failed to create brush.";
-
-    result = termy->writeFactory->CreateTextFormat(
-        L"Gabriola",
-        NULL,
-        DWRITE_FONT_WEIGHT_REGULAR,
-        DWRITE_FONT_STYLE_NORMAL,
-        DWRITE_FONT_STRETCH_NORMAL,
-        72.f,
-        L"en-us",
-        &termy->textFormat);
-
-    if (result != S_OK) throw "Failed to create text format.";
-
-    result = termy->textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
-
-    if (result != S_OK) throw "Failed to set font alignment.";
-
-    result = termy->textFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
-
-    if (result != S_OK) throw "Failed to set font paragraph alignment.";
-}
 
 LRESULT WINAPI windowProc(HWND window, UINT msg, WPARAM wParam, LPARAM lParam) {
 
@@ -116,7 +82,7 @@ LRESULT WINAPI windowProc(HWND window, UINT msg, WPARAM wParam, LPARAM lParam) {
     case WM_PAINT:
     {
         if (!termy->renderTarget)
-            setupD2D1(termy);
+            termy->createDeviceDependentComponents();
 
         RECT rect;
         GetClientRect(window, &rect);
@@ -159,39 +125,32 @@ LRESULT WINAPI windowProc(HWND window, UINT msg, WPARAM wParam, LPARAM lParam) {
     return DefWindowProcW(window, msg, wParam, lParam);
 }
 
-void createD2D1Factory(Termy *termy) {
-    HRESULT result;
+Termy::Termy(HINSTANCE instance) {
+    this->instance = instance;
 
-    result = D2D1CreateFactory(
-        D2D1_FACTORY_TYPE_SINGLE_THREADED,
-        &termy->factory);
-
-    if (result != S_OK) throw "Failed to create Direct 2D factory.";
-
-    result = DWriteCreateFactory(
-        DWRITE_FACTORY_TYPE_SHARED,
-        __uuidof(IDWriteFactory),
-        reinterpret_cast<IUnknown**>(&termy->writeFactory));
-
-    if (result != S_OK) throw "Failed to create Direct Write factory.";
+    cout << "Create device independent resources." << endl;
+    this->createDeviceIndepdendentComponents();
+    cout << "Create window." << endl;
+    this->createWindow();
 }
 
-void createWindow(Termy *termy) {
+
+void Termy::createWindow() {
     WNDCLASSEXW wincls = {sizeof(WNDCLASSEXW)};
 
     wincls.style = CS_HREDRAW | CS_VREDRAW;
     wincls.lpfnWndProc = &windowProc;
     wincls.cbClsExtra = 0;
     wincls.cbWndExtra = sizeof(LONG_PTR);
-    wincls.hInstance = termy->instance;
+    wincls.hInstance = this->instance;
     wincls.lpszClassName = L"TermyMain";
 
     if (!RegisterClassExW(&wincls)) {
-        // TODO: Get more error detals.
+        // TODO: Get more error details.
         throw "Failed to register window class.";
     }
 
-    termy->window = CreateWindowExW(
+    this->window = CreateWindowExW(
         0L,
         L"TermyMain",
         L"Termy",
@@ -200,17 +159,82 @@ void createWindow(Termy *termy) {
         500, 300,
         NULL,
         NULL,
-        termy->instance,
-        termy);
+        this->instance,
+        this);
 
-    // TODO: Get more error detals.
-    if (!termy->window) throw "Unable to create window.";
+    // TODO: Get more error details.
+    if (!this->window) throw "Unable to create window.";
 
-    ShowWindow(termy->window, SW_SHOWDEFAULT);
-    UpdateWindow(termy->window);
+    ShowWindow(this->window, SW_SHOWDEFAULT);
+    UpdateWindow(this->window);
 }
 
-void messageLoop(Termy *termy) {
+void Termy::createDeviceIndepdendentComponents() {
+    HRESULT result;
+
+    result = D2D1CreateFactory(
+        D2D1_FACTORY_TYPE_SINGLE_THREADED,
+        &this->factory);
+
+    if (result != S_OK) throw "Failed to create Direct 2D factory.";
+
+    result = DWriteCreateFactory(
+        DWRITE_FACTORY_TYPE_SHARED,
+        __uuidof(IDWriteFactory),
+        reinterpret_cast<IUnknown**>(&this->writeFactory));
+
+    if (result != S_OK) throw "Failed to create Direct Write factory.";
+}
+
+void Termy::createDeviceDependentComponents() {
+    RECT rect;
+    D2D1_SIZE_U size;
+    HRESULT result;
+
+    this->text = L"Hello, world!";
+    this->textLength = (UINT32) wcslen(this->text);
+
+    GetClientRect(this->window, &rect);
+
+    size = D2D1::SizeU(
+        rect.right - rect.left,
+        rect.bottom - rect.top);
+
+    result = this->factory->CreateHwndRenderTarget(
+        D2D1::RenderTargetProperties(),
+        D2D1::HwndRenderTargetProperties(this->window, size),
+        &this->renderTarget);
+
+    if (result != S_OK) throw "Failed to create render target.";
+
+    result = this->renderTarget->CreateSolidColorBrush(
+        D2D1::ColorF(D2D1::ColorF::LightSlateGray),
+        &this->brush);
+
+    if (result != S_OK) throw "Failed to create brush.";
+
+    result = this->writeFactory->CreateTextFormat(
+        L"Gabriola",
+        NULL,
+        DWRITE_FONT_WEIGHT_REGULAR,
+        DWRITE_FONT_STYLE_NORMAL,
+        DWRITE_FONT_STRETCH_NORMAL,
+        72.f,
+        L"en-us",
+        &this->textFormat);
+
+    if (result != S_OK) throw "Failed to create text format.";
+
+    result = this->textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
+
+    if (result != S_OK) throw "Failed to set font alignment.";
+
+    result = this->textFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
+
+    if (result != S_OK) throw "Failed to set font paragraph alignment.";
+}
+
+void Termy::messageLoop() {
     MSG msg;
     BOOL status;
 
@@ -227,20 +251,18 @@ void messageLoop(Termy *termy) {
     }
 }
 
+void Termy::start() {
+    cout << "Entering message loop." << endl;
+    this->messageLoop();
+}
+
 int main() {
 
     cout << "Hello windows!" << endl;
 
-    Termy termy = {};
-    termy.instance = GetModuleHandleW(NULL);
-
     try {
-        cout << "Create D2D1 factory." << endl;
-        createD2D1Factory(&termy);
-        cout << "Create window." << endl;
-        createWindow(&termy);
-        cout << "Entering message loop." << endl;
-        messageLoop(&termy);
+        Termy *termy = new Termy(GetModuleHandleW(NULL));
+        termy->start();
     } catch (char* msg) {
         cout << msg << endl;
         return -1;
