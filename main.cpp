@@ -68,12 +68,24 @@ LRESULT WINAPI windowProc(HWND window, UINT msg, WPARAM wParam, LPARAM lParam) {
 
     switch (msg) {
     case WM_DISPLAYCHANGE:
+    {
         InvalidateRect(window, NULL, FALSE);
         return 1;
+    }
+    case WM_SIZE:
+    {
+        UINT width = LOWORD(lParam);
+        UINT height = HIWORD(lParam);
+
+        if (termy->renderTarget)
+            termy->renderTarget->Resize(D2D1::SizeU(width, height));
+
+        return 1;
+    }
     case WM_PAINT:
+    {
         if (!termy->renderTarget)
             setupD2D1(termy);
-        cout << "?" << endl;
         PAINTSTRUCT ps;
         BeginPaint(window, &ps);
         termy->renderTarget->BeginDraw();
@@ -88,9 +100,12 @@ LRESULT WINAPI windowProc(HWND window, UINT msg, WPARAM wParam, LPARAM lParam) {
         ValidateRect(window, NULL);
         EndPaint(window, &ps);
         return 1;
+    }
     case WM_DESTROY:
+    {
         PostQuitMessage(0);
         return 1;
+    }
     }
 
     return DefWindowProcW(window, msg, wParam, lParam);
