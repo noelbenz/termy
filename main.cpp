@@ -19,25 +19,29 @@ using std::endl;
 // Windows types
 //------------------------------------------------------------------------------
 
-typedef BOOL      WinBool;
-typedef UINT      WinUInt;
-typedef WCHAR     WinWChar;
+namespace Win {
 
-typedef HRESULT   WinResult;
-typedef MSG       WinMsg;
-typedef LRESULT   WinLResult;
-typedef WPARAM    WinWParam;
-typedef LPARAM    WinLParam;
+    typedef BOOL      Bool;
+    typedef UINT      UInt;
+    typedef WCHAR     WChar;
 
-typedef HINSTANCE WinInstance;
-typedef HWND      WinWindow;
-typedef RECT      WinRect;
+    typedef HRESULT   Result;
+    typedef LRESULT   LResult;
+    typedef WPARAM    WParam;
+    typedef LPARAM    LParam;
 
-inline int winSuccess(WinResult result) {
-    return SUCCEEDED(result);
-}
-inline int winFailed(WinResult result) {
-    return FAILED(result);
+    typedef HINSTANCE Instance;
+    typedef HWND      Window;
+    typedef MSG       Msg;
+    typedef RECT      Rect;
+
+    inline Win::Bool success(Win::Result result) {
+        return SUCCEEDED(result);
+    }
+
+    inline Win::Bool failed(Win::Result result) {
+        return FAILED(result);
+    }
 }
 
 //------------------------------------------------------------------------------
@@ -50,8 +54,8 @@ inline int winFailed(WinResult result) {
 
 class Termy {
 public:
-    WinInstance instance;
-    WinWindow window;
+    Win::Instance instance;
+    Win::Window window;
     ID2D1Factory* factory;
     ID2D1HwndRenderTarget* renderTarget;
     ID2D1SolidColorBrush* brush;
@@ -59,8 +63,8 @@ public:
     IDWriteFactory* writeFactory;
     IDWriteTextFormat* textFormat;
 
-    const WinWChar* text;
-    WinUInt textLength;
+    const Win::WChar* text;
+    Win::UInt textLength;
 
     void createWindow();
     void createDeviceIndepdendentComponents();
@@ -71,19 +75,20 @@ public:
 
 public:
 
-    Termy(WinInstance);
+    Termy(Win::Instance);
 
     void start();
 };
 
-WinLResult WINAPI
-windowProc(WinWindow window, WinUInt msg, WinWParam wParam, WinLParam lParam) {
+Win::LResult WINAPI
+windowProc(Win::Window window, Win::UInt msg,
+           Win::WParam wParam, Win::LParam lParam) {
 
     if (msg == WM_CREATE) {
         LPCREATESTRUCT pcs = (LPCREATESTRUCT)lParam;
         Termy *termy = (Termy *)pcs->lpCreateParams;
 
-        ::SetWindowLongPtrW(
+        SetWindowLongPtrW(
             window,
             GWLP_USERDATA,
             PtrToUlong(termy));
@@ -105,8 +110,8 @@ windowProc(WinWindow window, WinUInt msg, WinWParam wParam, WinLParam lParam) {
     }
     case WM_SIZE:
     {
-        WinUInt width = LOWORD(lParam);
-        WinUInt height = HIWORD(lParam);
+        Win::UInt width = LOWORD(lParam);
+        Win::UInt height = HIWORD(lParam);
 
         if (termy->renderTarget)
             termy->renderTarget->Resize(D2D1::SizeU(width, height));
@@ -118,7 +123,7 @@ windowProc(WinWindow window, WinUInt msg, WinWParam wParam, WinLParam lParam) {
         if (!termy->renderTarget)
             termy->createDeviceDependentComponents();
 
-        WinRect rect;
+        Win::Rect rect;
         GetClientRect(window, &rect);
 
         D2D1_RECT_F layoutRect = D2D1::RectF(
@@ -170,10 +175,10 @@ void Termy::init() {
     this->textFormat = NULL;
 
     this->text = L"Hello, world!";
-    this->textLength = static_cast<WinUInt>(wcslen(this->text));
+    this->textLength = static_cast<Win::UInt>(wcslen(this->text));
 }
 
-Termy::Termy(WinInstance instance) {
+Termy::Termy(Win::Instance instance) {
     this->init();
 
     this->instance = instance;
@@ -220,26 +225,26 @@ void Termy::createWindow() {
 }
 
 void Termy::createDeviceIndepdendentComponents() {
-    WinResult result;
+    Win::Result result;
 
     result = D2D1CreateFactory(
         D2D1_FACTORY_TYPE_SINGLE_THREADED,
         &this->factory);
 
-    if (winFailed(result)) throw "Failed to create Direct 2D factory.";
+    if (Win::failed(result)) throw "Failed to create Direct 2D factory.";
 
     result = DWriteCreateFactory(
         DWRITE_FACTORY_TYPE_SHARED,
         __uuidof(IDWriteFactory),
         reinterpret_cast<IUnknown**>(&this->writeFactory));
 
-    if (winFailed(result)) throw "Failed to create Direct Write factory.";
+    if (Win::failed(result)) throw "Failed to create Direct Write factory.";
 }
 
 void Termy::createDeviceDependentComponents() {
-    WinRect rect;
+    Win::Rect rect;
+    Win::Result result;
     D2D1_SIZE_U size;
-    WinResult result;
 
     GetClientRect(this->window, &rect);
 
@@ -252,13 +257,13 @@ void Termy::createDeviceDependentComponents() {
         D2D1::HwndRenderTargetProperties(this->window, size),
         &this->renderTarget);
 
-    if (winFailed(result)) throw "Failed to create render target.";
+    if (Win::failed(result)) throw "Failed to create render target.";
 
     result = this->renderTarget->CreateSolidColorBrush(
         D2D1::ColorF(D2D1::ColorF::LightSlateGray),
         &this->brush);
 
-    if (winFailed(result)) throw "Failed to create brush.";
+    if (Win::failed(result)) throw "Failed to create brush.";
 
     result = this->writeFactory->CreateTextFormat(
         L"Gabriola",
@@ -270,20 +275,20 @@ void Termy::createDeviceDependentComponents() {
         L"en-us",
         &this->textFormat);
 
-    if (winFailed(result)) throw "Failed to create text format.";
+    if (Win::failed(result)) throw "Failed to create text format.";
 
     result = this->textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
 
-    if (winFailed(result)) throw "Failed to set font alignment.";
+    if (Win::failed(result)) throw "Failed to set font alignment.";
 
     result = this->textFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
 
-    if (winFailed(result)) throw "Failed to set font paragraph alignment.";
+    if (Win::failed(result)) throw "Failed to set font paragraph alignment.";
 }
 
 void Termy::messageLoop() {
-    WinMsg msg;
-    WinBool status;
+    Win::Msg msg;
+    Win::Bool status;
 
     while(1) {
         status = GetMessageW(&msg, NULL, 0, 0);
