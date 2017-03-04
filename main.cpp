@@ -1,6 +1,7 @@
 
 // C++ Standard
 #include <iostream>
+#include <exception>
 
 // Termy
 #include "windows.hpp"
@@ -17,6 +18,9 @@ int main() {
         termy->start();
     } catch (char* msg) {
         cout << msg << endl;
+        return -1;
+    } catch (const std::exception &ex) {
+        cout << ex.what() << endl;
         return -1;
     }
 

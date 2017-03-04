@@ -31,6 +31,8 @@ namespace Win {
     typedef CREATESTRUCT CreateStruct;
     typedef MSG          Msg;
     typedef RECT         Rect;
+    typedef PAINTSTRUCT  PaintStruct;
+    typedef WNDCLASSEXW  WindowClassEx;
 
     inline Win::Bool success(Win::Result result) {
         return SUCCEEDED(result);
@@ -48,33 +50,56 @@ namespace Win {
         return HIWORD(dword);
     }
 
+    inline Win::DWord lastError() {
+        return GetLastError();
+    }
+
     const int gwlpUserdata = GWLP_USERDATA;
 }
-
-//------------------------------------------------------------------------------
-// Direct 2D types
-//------------------------------------------------------------------------------
-
-//------------------------------------------------------------------------------
-// Direct Write types
-//------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
 // Exception classes
 //------------------------------------------------------------------------------
 
 class UnhandledMessageError: public std::runtime_error {
-private:
+public:
 
     Win::UInt msgType;
 
-public:
 
     UnhandledMessageError(Win::UInt msgType)
         : std::runtime_error("unhandled window message")
-        {
-            this->msgType = msgType;
-        }
+    {
+        this->msgType = msgType;
+    }
+};
+
+class WindowError: public std::runtime_error {
+public:
+
+    Win::Window window;
+    Win::DWord errorCode;
+
+    WindowError(const char *msg)
+        : std::runtime_error(msg)
+    {
+        this->window = NULL;
+        this->errorCode = Win::lastError();
+    }
+
+    WindowError(const char *msg, Win::Window window)
+        : std::runtime_error(msg)
+    {
+        this->window = window;
+        this->errorCode = Win::lastError();
+    }
+
+    WindowError(const char *msg, Win::Window window, Win::DWord errorCode)
+        : std::runtime_error(msg)
+    {
+        this->window = window;
+        this->errorCode = errorCode;
+    }
 };
 
 //------------------------------------------------------------------------------

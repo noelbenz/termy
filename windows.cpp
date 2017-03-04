@@ -85,8 +85,9 @@ Termy::Termy(Win::Instance instance) {
 
 
 void Termy::createWindow() {
-    WNDCLASSEXW wincls = {sizeof(WNDCLASSEXW)};
+    Win::WindowClassEx wincls = {};
 
+    wincls.cbSize = sizeof(Win::WindowClassEx);
     wincls.style = CS_HREDRAW | CS_VREDRAW;
     wincls.lpfnWndProc = &windowProc;
     wincls.cbClsExtra = 0;
@@ -95,8 +96,7 @@ void Termy::createWindow() {
     wincls.lpszClassName = L"TermyMain";
 
     if (!RegisterClassExW(&wincls)) {
-        // TODO: Get more error details.
-        throw "Failed to register window class.";
+        throw WindowError("Failed to register window class.");
     }
 
     this->window = CreateWindowExW(
@@ -111,8 +111,8 @@ void Termy::createWindow() {
         this->instance,
         this);
 
-    // TODO: Get more error details.
-    if (!this->window) throw "Unable to create window.";
+    if (!this->window)
+        throw WindowError("Unable to create window.");
 
     ShowWindow(this->window, SW_SHOWDEFAULT);
     UpdateWindow(this->window);
@@ -190,7 +190,7 @@ void Termy::messageLoop() {
         if (status == 0) break;
 
         if (status == -1)
-            // TODO: Get more error detals.
+            // TODO: Get more error details.
             throw "Messsage loop failure.";
 
         TranslateMessage(&msg);
@@ -219,7 +219,7 @@ void Termy::paint() {
         static_cast<Win::Float>(rect.bottom - rect.top));
 
 
-    PAINTSTRUCT ps;
+    Win::PaintStruct ps;
     BeginPaint(this->window, &ps);
     this->renderTarget->BeginDraw();
     this->renderTarget->SetTransform(D2D1::Matrix3x2F::Identity());
