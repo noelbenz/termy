@@ -67,11 +67,7 @@ public:
     Win::UInt msgType;
 
 
-    UnhandledMessageError(Win::UInt msgType)
-        : std::runtime_error("unhandled window message")
-    {
-        this->msgType = msgType;
-    }
+    UnhandledMessageError(Win::UInt msgType);
 };
 
 class WindowError: public std::runtime_error {
@@ -80,26 +76,9 @@ public:
     Win::Window window;
     Win::DWord errorCode;
 
-    WindowError(const char *msg)
-        : std::runtime_error(msg)
-    {
-        this->window = NULL;
-        this->errorCode = Win::lastError();
-    }
-
-    WindowError(const char *msg, Win::Window window)
-        : std::runtime_error(msg)
-    {
-        this->window = window;
-        this->errorCode = Win::lastError();
-    }
-
-    WindowError(const char *msg, Win::Window window, Win::DWord errorCode)
-        : std::runtime_error(msg)
-    {
-        this->window = window;
-        this->errorCode = errorCode;
-    }
+    WindowError(const char *msg);
+    WindowError(const char *msg, Win::Window window);
+    WindowError(const char *msg, Win::Window window, Win::DWord errorCode);
 };
 
 //------------------------------------------------------------------------------

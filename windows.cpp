@@ -14,6 +14,37 @@ using std::cout;
 using std::endl;
 
 //------------------------------------------------------------------------------
+// Exception classes
+//------------------------------------------------------------------------------
+
+UnhandledMessageError::UnhandledMessageError(Win::UInt msgType)
+    : std::runtime_error("unhandled window message")
+{
+    this->msgType = msgType;
+}
+
+WindowError::WindowError(const char *msg)
+    : std::runtime_error(msg)
+{
+    this->window = NULL;
+    this->errorCode = Win::lastError();
+}
+
+WindowError::WindowError(const char *msg, Win::Window window)
+    : std::runtime_error(msg)
+{
+    this->window = window;
+    this->errorCode = Win::lastError();
+}
+
+WindowError::WindowError(const char *msg, Win::Window window, Win::DWord errorCode)
+    : std::runtime_error(msg)
+{
+    this->window = window;
+    this->errorCode = errorCode;
+}
+
+//------------------------------------------------------------------------------
 // Window process callback
 //------------------------------------------------------------------------------
 
@@ -85,17 +116,17 @@ Termy::Termy(Win::Instance instance) {
 
 
 void Termy::createWindow() {
-    Win::WindowClassEx wincls = {};
+    Win::WindowClassEx windowClass = {};
 
-    wincls.cbSize = sizeof(Win::WindowClassEx);
-    wincls.style = CS_HREDRAW | CS_VREDRAW;
-    wincls.lpfnWndProc = &windowProc;
-    wincls.cbClsExtra = 0;
-    wincls.cbWndExtra = sizeof(LONG_PTR);
-    wincls.hInstance = this->instance;
-    wincls.lpszClassName = L"TermyMain";
+    windowClass.cbSize = sizeof(Win::WindowClassEx);
+    windowClass.style = CS_HREDRAW | CS_VREDRAW;
+    windowClass.lpfnWndProc = &windowProc;
+    windowClass.cbClsExtra = 0;
+    windowClass.cbWndExtra = sizeof(LONG_PTR);
+    windowClass.hInstance = this->instance;
+    windowClass.lpszClassName = L"TermyMain";
 
-    if (!RegisterClassExW(&wincls)) {
+    if (!RegisterClassExW(&windowClass)) {
         throw WindowError("Failed to register window class.");
     }
 
@@ -125,14 +156,26 @@ void Termy::createDeviceIndepdendentComponents() {
         D2D1_FACTORY_TYPE_SINGLE_THREADED,
         &this->factory);
 
-    if (Win::failed(result)) throw "Failed to create Direct 2D factory.";
+    if (Win::failed(result)) throw WindowError("Failed to create Direct 2D factory.", this->window);
 
     result = DWriteCreateFactory(
         DWRITE_FACTORY_TYPE_SHARED,
         __uuidof(IDWriteFactory),
         reinterpret_cast<IUnknown**>(&this->writeFactory));
 
-    if (Win::failed(result)) throw "Failed to create Direct Write factory.";
+    if (Win::failed(result)) throw WindowError("Failed to create Direct Write factory.", this->window);
+
+    result = this->writeFactory->CreateTextFormat(
+        L"Gabriola",
+        NULL,
+        DWRITE_FONT_WEIGHT_REGULAR,
+        DWRITE_FONT_STYLE_NORMAL,
+        DWRITE_FONT_STRETCH_NORMAL,
+        72.0f,
+        L"en-us",
+        &this->textFormat);
+
+    if (Win::failed(result)) throw WindowError("Failed to create text format.", this->window);
 }
 
 void Termy::createDeviceDependentComponents() {
@@ -151,34 +194,21 @@ void Termy::createDeviceDependentComponents() {
         D2D1::HwndRenderTargetProperties(this->window, size),
         &this->renderTarget);
 
-    if (Win::failed(result)) throw "Failed to create render target.";
+    if (Win::failed(result)) throw WindowError("Failed to create render target.", this->window);
 
     result = this->renderTarget->CreateSolidColorBrush(
         D2D1::ColorF(D2D1::ColorF::LightSlateGray),
         &this->brush);
 
-    if (Win::failed(result)) throw "Failed to create brush.";
-
-    // TODO: Might not be device dependent.
-    result = this->writeFactory->CreateTextFormat(
-        L"Gabriola",
-        NULL,
-        DWRITE_FONT_WEIGHT_REGULAR,
-        DWRITE_FONT_STYLE_NORMAL,
-        DWRITE_FONT_STRETCH_NORMAL,
-        72.f,
-        L"en-us",
-        &this->textFormat);
-
-    if (Win::failed(result)) throw "Failed to create text format.";
+    if (Win::failed(result)) throw WindowError("Failed to create brush.", this->window);
 
     result = this->textFormat->SetTextAlignment(DWRITE_TEXT_ALIGNMENT_CENTER);
 
-    if (Win::failed(result)) throw "Failed to set font alignment.";
+    if (Win::failed(result)) throw WindowError("Failed to set font alignment.", this->window);
 
     result = this->textFormat->SetParagraphAlignment(DWRITE_PARAGRAPH_ALIGNMENT_CENTER);
 
-    if (Win::failed(result)) throw "Failed to set font paragraph alignment.";
+    if (Win::failed(result)) throw WindowError("Failed to set font paragraph alignment.", this->window);
 }
 
 void Termy::messageLoop() {
@@ -190,8 +220,7 @@ void Termy::messageLoop() {
         if (status == 0) break;
 
         if (status == -1)
-            // TODO: Get more error details.
-            throw "Messsage loop failure.";
+            throw WindowError("GetMessage failed.", this->window);
 
         TranslateMessage(&msg);
         DispatchMessageW(&msg);
